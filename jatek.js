@@ -534,22 +534,111 @@ function showTopics() {
   show('s-topics');
 }
 
-// ---------- Album ----------
+// ---------- Album és kereső ----------
+// Ékezetfüggetlen keresés: "kes" megtalálja a "kés"-t is. Karakterenként alakítunk, így a hossz nem változik (kiemeléshez kell).
+const norm = s => s.split('').map(c => c.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().charAt(0) || c).join('');
+ITEMS.forEach(it => { it.nf = norm(it.full); it.nm = norm(it.mean); it.ne = norm(it.ex); });
+
+// Kiemelés: a keresett szavak sárga hátteret kapnak
+function hl(text, terms) {
+  if (!terms.length) return esc(text);
+  const n = norm(text), on = new Array(text.length).fill(false);
+  terms.forEach(t => { let i = n.indexOf(t); while (i >= 0) { for (let k = i; k < i + t.length; k++) on[k] = true; i = n.indexOf(t, i + 1); } });
+  let out = '', open = false;
+  for (let i = 0; i < text.length; i++) {
+    if (on[i] && !open) { out += '<mark>'; open = true; } else if (!on[i] && open) { out += '</mark>'; open = false; }
+    out += esc(text[i]);
+  }
+  return out + (open ? '</mark>' : '');
+}
+
+// Rokon szólások: közös "fontos" szó (szótő-szerűen, első 5 betű), vagy ugyanaz a hiányzó szó
+const STOP = new Set('mint csak akkor amit amig ahol aki akik sincs nincs hogy mert majd sem meg mar azt ezt annak ennek neki nem egy ket kell lesz volt van vagy olyan mindig soha senki minden barki valaki'.split(' '));
+const keysOf = it => new Set(it.nf.replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length >= 4 && !STOP.has(w)).map(w => w.slice(0, 5)));
+ITEMS.forEach(it => { it.keys = keysOf(it); });
+function related(it) {
+  return ITEMS.filter(o => o !== it && [...it.keys].some(k => o.keys.has(k))).slice(0, 4);
+}
+
+let albumList = ITEMS, albumTerms = [];
+
+function searchTerms() { return norm($('#search').value).trim().split(/\s+/).filter(Boolean); }
+// A szólásban bárhol egyezhet (pl. "hazud" → "lehazudná"), a jelentésben/magyarázatban csak szó elején – így kevesebb a zaj
+const wordStart = (hay, t) => (' ' + hay.replace(/[^a-z0-9]+/g, ' ')).includes(' ' + t);
+function matches(it, terms) {
+  return terms.every(t => it.nf.includes(t) || wordStart(it.nm, t) || wordStart(it.ne, t));
+}
+function chipHTML(it, terms) {
+  const l = lvl(it.id);
+  const inFull = terms.length && terms.every(t => it.nf.includes(t));
+  const sub = terms.length && !inFull ? `<span class="sub">💡 ${hl(it.mean, terms)}</span>` : '';
+  return `<button class="chip l${l}" data-id="${it.id}"><span class="lv">${LV_ICON[l]}</span>${hl(it.full, terms)}${sub}</button>`;
+}
+
+function renderAlbum() {
+  const terms = searchTerms();
+  albumTerms = terms;
+  $('.searchbox').classList.toggle('has', !!$('#search').value);
+  if (!terms.length) {
+    albumList = ITEMS;
+    $('#searchinfo').textContent = 'Koppints bármelyik szólásra a magyarázatért!';
+    $('#albumlist').innerHTML = Object.entries(CATS).map(([k, c]) => {
+      const s = catStats(k);
+      return `<div class="albumcat"><span>${c.e}</span>${c.n} <span style="font-size:16px;color:var(--soft)">⭐ ${s.m}/${s.n}</span></div><div class="chips">` +
+        ITEMS.filter(it => it.cat === k).map(it => chipHTML(it, [])).join('') + '</div>';
+    }).join('');
+    return;
+  }
+  // Előre azok, ahol magában a szólásban van a keresett szó
+  const hits = ITEMS.filter(it => matches(it, terms));
+  const score = it => terms.every(t => it.nf.includes(t)) ? 0 : 1;
+  hits.sort((a, b) => score(a) - score(b));
+  albumList = hits;
+  $('#searchinfo').textContent = hits.length ? `${hits.length} találat` : '';
+  $('#albumlist').innerHTML = hits.length
+    ? `<div class="chips">${hits.map(it => chipHTML(it, terms)).join('')}</div>`
+    : `<div class="nores">🦉 Ilyen szólást nem találtam.<br><span style="font-size:17px">Próbálj egy rövidebb szót, például csak a szó elejét!</span></div>`;
+}
+
+function showInfo(id) {
+  const it = ITEMS[id], l = lvl(it.id), c = CATS[it.cat], p = S.items[it.id];
+  const idx = albumList.indexOf(it), terms = albumTerms;
+  const status = l === 0 ? 'Még nem tanultad – egy játékkörben hamarosan sorra kerül!' : l >= 6 ? 'Mester szint! Ezt már nagyon tudod. 🎉' : `${l}. szint az 5-ből – így tovább!`;
+  const stat = p && (p.r || p.w) ? ` · ✅ ${p.r} jó, ❌ ${p.w} hibás válasz` : '';
+  const rel = related(it);
+  modal(`<div class="info">
+    <div class="ihead">${tagHTML(it)}
+      <div class="nav"><button data-nav="-1" ${idx <= 0 ? 'disabled' : ''} title="Előző">◀</button><button data-nav="1" ${idx < 0 || idx >= albumList.length - 1 ? 'disabled' : ''} title="Következő">▶</button></div></div>
+    <div class="saying">${hl(it.full, terms)}</div>
+    <div class="sec s-mean"><b class="h">💡 Mit jelent?</b>${hl(it.mean, terms)}</div>
+    ${it.ex ? `<div class="sec s-why"><b class="h">🔎 Miért mondjuk így?</b>${hl(it.ex, terms)}</div>` : ''}
+    <div class="sec s-me"><b class="h">${LV_ICON[l]} Hol tartasz vele?</b>
+      <div class="lvbar">${[1, 2, 3, 4, 5, 6].map(i => `<i class="${l >= i ? 'on' : ''}"></i>`).join('')}</div>${status}${stat}</div>
+    ${rel.length ? `<div class="sec" style="background:#f5f3ff"><b class="h">🔗 Hasonló szavak más szólásokban</b><div class="rel">${rel.map(o => `<button data-rel="${o.id}">${CATS[o.cat].e} ${esc(o.full)}</button>`).join('')}</div></div>` : ''}
+    <div class="row">${speakBtn(it.full + '. ' + it.mean + ' ' + it.ex)}<button class="primary" data-close>Bezár</button></div>
+  </div>`);
+  $('#modalcard').dataset.info = it.id;
+}
+
+$('#modalcard').addEventListener('click', e => {
+  const n = e.target.closest('[data-nav]'), r = e.target.closest('[data-rel]');
+  if (n) { const i = albumList.indexOf(ITEMS[+$('#modalcard').dataset.info]) + +n.dataset.nav; if (albumList[i]) showInfo(albumList[i].id); }
+  else if (r) showInfo(+r.dataset.rel);
+});
+document.addEventListener('keydown', e => {
+  if (!$('#modal').classList.contains('on')) return;
+  if (e.key === 'Escape') closeModal();
+  else if ($('#modalcard').querySelector('.info') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    const b = $(`#modalcard [data-nav="${e.key === 'ArrowLeft' ? -1 : 1}"]`); if (b && !b.disabled) b.click();
+  }
+});
+
+$('#search').addEventListener('input', renderAlbum);
+$('#search-x').onclick = () => { $('#search').value = ''; renderAlbum(); $('#search').focus(); };
+$('#albumlist').onclick = e => { const b = e.target.closest('.chip'); if (b) showInfo(+b.dataset.id); };
+
 function showAlbum() {
-  $('#albumlist').innerHTML = Object.entries(CATS).map(([k, c]) => {
-    const s = catStats(k);
-    return `<div class="albumcat"><span>${c.e}</span>${c.n} <span style="font-size:16px;color:var(--soft)">⭐ ${s.m}/${s.n}</span></div><div class="chips">` +
-      ITEMS.filter(it => it.cat === k).map(it => { const l = lvl(it.id); return `<button class="chip l${l}" data-id="${it.id}"><span class="lv">${LV_ICON[l]}</span>${esc(it.full)}</button>`; }).join('') + '</div>';
-  }).join('');
-  $('#albumlist').onclick = e => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    const it = ITEMS[+b.dataset.id], l = lvl(it.id);
-    modal(`${tagHTML(it)}<div class="saying" style="margin:18px 0">${esc(it.full)}</div>
-      <div class="meaning" style="font-size:22px;background:#fef9c3;border-radius:18px;padding:14px">💡 ${esc(it.mean)}</div>
-      ${it.ex ? `<div class="explain">🔎 <b>Miért mondjuk így?</b> ${esc(it.ex)}</div>` : ''}
-      <p style="font-size:18px;color:var(--soft)">${LV_ICON[l]} ${l === 0 ? 'Még nem tanultad' : l >= 6 ? 'Mester szint!' : `${l}. szint az 5-ből`}</p>
-      <div class="row">${speakBtn(it.full + '. ' + it.mean + ' ' + it.ex)}<button class="primary" data-close>Bezár</button></div>`);
-  };
+  renderAlbum();
   show('s-album');
 }
 

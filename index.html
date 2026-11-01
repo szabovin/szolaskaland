@@ -166,7 +166,39 @@
 
   .modal { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
   .modal.on { display: flex; }
-  .modal .card { max-width: 680px; width: 100%; text-align: center; }
+  .modal .card { max-width: 680px; width: 100%; text-align: center; max-height: calc(100vh - 32px); overflow-y: auto; }
+
+  /* kereső */
+  .searchbox { display: flex; align-items: center; gap: 10px; background: var(--card); border: 3px solid var(--line); border-radius: 22px; padding: 6px 10px 6px 16px; box-shadow: 0 4px 0 var(--line); margin-bottom: 8px; }
+  .searchbox:focus-within { border-color: #8b5cf6; }
+  .searchbox span { font-size: 24px; }
+  .searchbox input { flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; font-size: 22px; padding: 10px 0; background: transparent; user-select: text; -webkit-user-select: text; }
+  .searchbox input::-webkit-search-cancel-button { display: none; }
+  .searchbox .clear { border: 0; background: #f1f5f9; border-radius: 12px; width: 42px; height: 42px; font-size: 18px; color: var(--soft); visibility: hidden; }
+  .searchbox.has .clear { visibility: visible; }
+  .searchinfo { font-size: 17px; color: var(--soft); font-weight: 700; min-height: 8px; margin: 4px 4px 10px; }
+  .chip mark, .info mark { background: #fde68a; color: inherit; border-radius: 5px; padding: 0 2px; }
+  .chip .sub { display: block; font-size: 14px; font-weight: 600; color: var(--soft); margin-top: 3px; }
+  .nores { text-align: center; font-size: 22px; color: var(--soft); padding: 30px 10px; }
+
+  /* info ablak */
+  .info { text-align: left; }
+  .info .ihead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .info .nav { display: flex; gap: 8px; }
+  .info .nav button { width: 46px; height: 46px; border-radius: 14px; border: 0; background: #f1f5f9; font-size: 20px; box-shadow: 0 3px 0 var(--line); }
+  .info .nav button:disabled { opacity: .35; }
+  .info .saying { text-align: center; margin: 18px 0 16px; }
+  .info .sec { border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; font-size: 20px; line-height: 1.4; }
+  .info .sec b.h { display: block; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; margin-bottom: 4px; }
+  .info .s-mean { background: #fef9c3; }
+  .info .s-why { background: #e0f2fe; }
+  .info .s-me { background: #f1f5f9; font-size: 17px; }
+  .info .lvbar { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .info .lvbar i { flex: 1; height: 12px; border-radius: 6px; background: #e2e8f0; }
+  .info .lvbar i.on { background: linear-gradient(90deg, #22c55e, #16a34a); }
+  .info .rel { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .info .rel button { border: 0; border-radius: 14px; padding: 8px 12px; font-size: 16px; font-weight: 700; background: #fff; box-shadow: 0 3px 0 var(--line); text-align: left; }
+  .info .row { margin-top: 6px; }
 
   .ptable { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 18px; overflow: hidden; font-size: 17px; }
   .ptable td, .ptable th { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -223,7 +255,7 @@
     <button class="big b-main" id="go-adv"><span class="ic">🗺️</span>Kaland indul!<small>10 feladat – új és ismételendő szólások</small></button>
     <button class="big b-flash" id="go-flash"><span class="ic">⚡</span>Villámkör<small>1 vagy 3 perc, gyűjts minél többet!</small></button>
     <button class="big b-topic" id="go-topics"><span class="ic">🎯</span>Témák<small>Válassz egy feladatcsoportot</small></button>
-    <button class="big b-album" id="go-album"><span class="ic">📖</span>Album<small>Az összes szólás és jelentése</small></button>
+    <button class="big b-album" id="go-album"><span class="ic">📖</span>Album és kereső<small>Keress rá bármelyik szólásra!</small></button>
     <button class="big b-parent" id="go-parent"><span class="ic">👨‍👩‍👧</span>Szülői sarok<small>Haladás, nehéz szólások</small></button>
   </div>
   <div class="footer">
@@ -271,6 +303,8 @@
 <!-- Album -->
 <section class="screen" id="s-album">
   <div class="topbar"><button class="iconbtn back">⬅️</button><h2 style="margin:0">Szólás-album</h2></div>
+  <div class="searchbox"><span>🔍</span><input id="search" type="search" placeholder="Keress szóra: kutya, kés, hét, hazudik…" autocomplete="off"><button class="clear" id="search-x" title="Törlés">✖</button></div>
+  <div class="searchinfo" id="searchinfo"></div>
   <div class="legend">
     <span>🔒 még új</span><span>🥚 ismerkedik</span><span>🐣 tanulja</span><span>🐥 jól megy</span><span>🦅 majdnem mester</span><span>⭐ mester</span>
   </div>
