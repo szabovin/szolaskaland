@@ -213,6 +213,13 @@
     .saying { font-size: 26px; } .opt { font-size: 21px; } .opts.long .opt { font-size: 18px; }
     .menu { grid-template-columns: 1fr; } h1 { font-size: 36px; } .lslot { width: 38px; height: 50px; font-size: 24px; }
     .tile { font-size: 21px; padding: 10px 14px; } .sheet .face { display: none; } .sheet .full { font-size: 19px; }
+    /* Visszajelző sáv telefonon: a szöveg teljes szélességű, a gombok alatta; túl hosszú szövegnél görgethető */
+    .sheet { padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 78vh; overflow-y: auto; }
+    .sheet .in { flex-wrap: wrap; gap: 12px; }
+    .sheet .txt { flex: 1 1 100%; }
+    .sheet .head { font-size: 24px; }
+    .sheet .mean { font-size: 17px; } .sheet .ex { font-size: 16px; }
+    .sheet #sh-next { flex: 1; padding: 14px 20px; font-size: 22px; }
   }
 </style>
 </head>
