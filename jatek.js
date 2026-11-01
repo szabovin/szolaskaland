@@ -23,11 +23,30 @@ const PRAISE = ['Szuper!', 'Telitalálat!', 'Ügyes vagy!', 'Pontosan!', 'Nagysz
 const OOPS = ['Majdnem!', 'Semmi baj!', 'Nem egészen...', 'Hoppá!'];
 
 // ---------- Mentés ----------
-const KEY = 'szolaskaland_v1';
-function blank() { return { name: '', xp: 0, round: 0, items: {}, best: 0, best3: 0, streak: 0, lastDay: '', sound: true }; }
-function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.items) return Object.assign(blank(), s); } catch (e) {} return blank(); }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-let S = load();
+// Több játékos: minden játékos haladása külön kulcson van, a lista a USERS_KEY alatt.
+// Az első (régi) játékos kulcsa maradt 'szolaskaland_v1', így a korábbi mentések megmaradnak.
+const OLD_KEY = 'szolaskaland_v1', USERS_KEY = 'szolaskaland_users';
+function blank() { return { name: '', g: '', xp: 0, round: 0, items: {}, best: 0, best3: 0, streak: 0, lastDay: '', sound: true }; }
+function loadKey(k) { try { const s = JSON.parse(localStorage.getItem(k)); if (s && s.items) return Object.assign(blank(), s); } catch (e) {} return null; }
+function loadUsers() {
+  try { const u = JSON.parse(localStorage.getItem(USERS_KEY)); if (u && Array.isArray(u.keys)) return u; } catch (e) {}
+  const old = loadKey(OLD_KEY);   // első indítás az új verzióval: a régi mentésből lesz az első játékos
+  return old && old.name ? { active: OLD_KEY, keys: [OLD_KEY] } : { active: null, keys: [] };
+}
+function saveUsers() { try { localStorage.setItem(USERS_KEY, JSON.stringify(U)); } catch (e) {} }
+let U = loadUsers();
+let KEY = U.active;
+function save() { if (!KEY) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+let S = (KEY && loadKey(KEY)) || blank();
+function profiles() { return U.keys.map(k => ({ k, s: loadKey(k) })).filter(p => p.s && p.s.name); }
+function switchTo(k) { KEY = U.active = k; S = loadKey(k) || blank(); saveUsers(); }
+function addUser(name, g) {
+  const k = U.keys.length ? 'szolaskaland_u' + Date.now().toString(36) : OLD_KEY;
+  S = blank(); S.name = name; S.g = g; KEY = U.active = k;
+  if (!U.keys.includes(k)) U.keys.push(k);
+  save(); saveUsers();
+}
+const avatar = s => s.g === 'fiu' ? '👦' : s.g === 'lany' ? '👧' : '🙂';
 function P(id) { return S.items[id] || (S.items[id] = { l: 0, r: 0, w: 0, last: -99 }); }
 const lvl = id => (S.items[id] ? S.items[id].l : 0);
 
@@ -41,6 +60,7 @@ function bumpDay() {
 function liveStreak() {
   return (S.lastDay === dayStr(new Date()) || S.lastDay === dayStr(new Date(Date.now() - 864e5))) ? S.streak : 0;
 }
+const rankName = i => (S.g === 'fiu' && RANKS[i][1] === 'Szólás-királynő') ? 'Szólás-király' : RANKS[i][1];
 function rankOf(xp) { let i = 0; while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++; return i; }
 
 // ---------- Hang és felolvasás ----------
@@ -108,15 +128,17 @@ document.querySelectorAll('.back').forEach(b => b.onclick = home);
 
 function home() {
   stopTimer();
-  if (!S.name) { show('s-name'); setTimeout(() => $('#nameinput').focus(), 50); return; }
+  if (!S.name) { showProfiles(); return; }
+  if (!S.g) { askGender(home); return; }   // régi mentés: még nem tudjuk, fiú vagy lány
   const ri = rankOf(S.xp), r = RANKS[ri], nx = RANKS[ri + 1];
+  $('#switch-user').textContent = `${avatar(S)} ${S.name} · Játékosváltás`;
   $('#hello').textContent = `Szia, ${S.name}! ` + pick(['Kalandra fel!', 'Jó, hogy itt vagy!', 'Ma mit tanulunk?', 'Bori már várt rád!']);
   $('#h-streak').textContent = liveStreak() + ' nap';
   $('#h-xp').textContent = S.xp;
   $('#h-best').textContent = S.best + ' / ' + S.best3;
-  $('#h-rank').textContent = r[2] + ' ' + r[1];
+  $('#h-rank').textContent = r[2] + ' ' + rankName(ri);
   $('#h-rankbar').style.width = nx ? ((S.xp - r[0]) / (nx[0] - r[0]) * 100) + '%' : '100%';
-  $('#h-ranknext').textContent = nx ? `Még ${nx[0] - S.xp} pont, és ${nx[2]} ${nx[1]} leszel!` : 'Elérted a legmagasabb rangot!';
+  $('#h-ranknext').textContent = nx ? `Még ${nx[0] - S.xp} pont, és ${nx[2]} ${rankName(ri + 1)} leszel!` : 'Elérted a legmagasabb rangot!';
   const m = ITEMS.filter(it => lvl(it.id) >= 6).length, l = ITEMS.filter(it => lvl(it.id) >= 1 && lvl(it.id) < 6).length;
   $('#h-mbar').style.width = (m / ITEMS.length * 100) + '%';
   $('#h-mtext').textContent = `${m} / ${ITEMS.length} mester`;
@@ -125,11 +147,46 @@ function home() {
   show('s-home');
 }
 
+// ---------- Játékosok ----------
+let newG = '';
+const nameKey = n => norm(n.trim());
+function showProfiles() {
+  const list = profiles();
+  $('#profiles').innerHTML = list.length
+    ? `<p class="plead">Ki játszik most? Koppints a nevedre!</p><div class="plist">` + list.map(p => {
+        const ri = rankOf(p.s.xp);
+        return `<button class="profile${p.k === KEY ? ' cur' : ''}" data-k="${p.k}"><span class="av">${avatar(p.s)}</span><span class="pn">${esc(p.s.name)}<small>${RANKS[ri][2]} ${p.s.xp} pont</small></span></button>`;
+      }).join('') + `</div><p class="plead" style="margin-top:22px">Új játékos vagy? Írd be a beceneved:</p>`
+    : `<p style="font-size:21px">Szia! Bagoly Bori vagyok. Én segítek megtanulni a szólásokat és közmondásokat. Hogy hívnak?</p>`;
+  $('#nameinput').value = ''; newG = ''; paintGender();
+  show('s-name');
+  if (!list.length) setTimeout(() => $('#nameinput').focus(), 50);
+}
+function paintGender() {
+  document.querySelectorAll('#s-name .gbtn').forEach(b => b.classList.toggle('on', b.dataset.g === newG));
+  // ha már létező nevet írt be, nem kell nem
+  const exists = profiles().some(p => nameKey(p.s.name) === nameKey($('#nameinput').value));
+  $('#genderrow').style.display = exists ? 'none' : '';
+  $('#namego').textContent = exists ? 'Folytatom! ▶' : 'Indulhat a kaland! 🚀';
+}
+function shakeEl(el) { el.classList.add('shake'); setTimeout(() => el.classList.remove('shake'), 400); }
+$('#profiles').onclick = e => { const b = e.target.closest('.profile'); if (b) { switchTo(b.dataset.k); SND.tap(); home(); } };
+$('#nameinput').addEventListener('input', paintGender);
+$('#genderrow').onclick = e => { const b = e.target.closest('.gbtn'); if (b) { newG = b.dataset.g; paintGender(); } };
 $('#namego').onclick = () => {
   const n = $('#nameinput').value.trim();
-  if (!n) { $('#nameinput').classList.add('shake'); setTimeout(() => $('#nameinput').classList.remove('shake'), 400); return; }
-  S.name = n; save(); home();
+  if (!n) { shakeEl($('#nameinput')); return; }
+  const ex = profiles().find(p => nameKey(p.s.name) === nameKey(n));   // elég a becenév: ha már van ilyen, arra vált
+  if (ex) { switchTo(ex.k); home(); return; }
+  if (!newG) { shakeEl($('#genderrow')); return; }
+  addUser(n, newG); home();
 };
+function askGender(then) {
+  modal(`<div style="font-size:60px">🦉</div><h2>${esc(S.name)}, fiú vagy lány vagy?</h2>
+    <div class="row"><button class="gbtn" data-g="lany">👧<span>Lány</span></button><button class="gbtn" data-g="fiu">👦<span>Fiú</span></button></div>`);
+  document.querySelectorAll('#modalcard .gbtn').forEach(b => b.onclick = () => { S.g = b.dataset.g; save(); closeModal(); then(); });
+}
+$('#switch-user').onclick = showProfiles;
 $('#nameinput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#namego').click(); });
 $('#sound-toggle').onclick = () => { S.sound = !S.sound; save(); home(); };
 $('#go-adv').onclick = () => startRound(null);
@@ -514,7 +571,7 @@ function endRound() {
   const r1 = rankOf(S.xp);
   if (r1 > G.rank0) setTimeout(() => {
     SND.win(); confetti(200, innerWidth / 2, innerHeight / 2);
-    modal(`<div style="font-size:90px">${RANKS[r1][2]}</div><h2>Új rang!</h2><p style="font-size:24px">Mostantól te vagy:<br><b>${RANKS[r1][1]}</b></p><button class="primary" data-close>Hurrá! 🎉</button>`);
+    modal(`<div style="font-size:90px">${RANKS[r1][2]}</div><h2>Új rang!</h2><p style="font-size:24px">Mostantól te vagy:<br><b>${rankName(r1)}</b></p><button class="primary" data-close>Hurrá! 🎉</button>`);
   }, 1900);
 }
 
@@ -646,7 +703,7 @@ function showAlbum() {
 function showParent() {
   const rows = Object.entries(CATS).map(([k, c]) => { const s = catStats(k); return `<tr><td>${c.e} ${c.n}</td><td>${s.m} / ${s.n}</td><td>${s.l}</td><td>${s.n - s.m - s.l}</td></tr>`; }).join('');
   const hard = ITEMS.filter(it => S.items[it.id] && S.items[it.id].w > 0).sort((a, b) => S.items[b.id].w - S.items[a.id].w).slice(0, 12);
-  $('#parentstats').innerHTML = `<div class="ptext">Lejátszott körök: <b>${S.round}</b> · Összes pont: <b>${S.xp}</b> · Napi sorozat: <b>${liveStreak()} nap</b></div>
+  $('#parentstats').innerHTML = `<div class="ptext">Játékos: <b>${avatar(S)} ${esc(S.name)}</b> · Lejátszott körök: <b>${S.round}</b> · Összes pont: <b>${S.xp}</b> · Napi sorozat: <b>${liveStreak()} nap</b></div>
     <table class="ptable"><tr><th>Téma</th><th>⭐ Mester</th><th>Tanulás alatt</th><th>Még nem látta</th></tr>${rows}</table>
     <h3 style="font-size:22px;margin:20px 0 8px">Legtöbbször elrontott szólások</h3>
     ${hard.length ? '<table class="ptable"><tr><th>Szólás</th><th>Hibák</th><th>Jó válasz</th><th>Szint</th></tr>' + hard.map(it => { const p = S.items[it.id]; return `<tr><td>${esc(it.full)}<br><small style="color:var(--soft)">${esc(it.mean)}</small></td><td>${p.w}</td><td>${p.r}</td><td>${LV_ICON[p.l]}</td></tr>`; }).join('') + '</table>'
@@ -656,12 +713,30 @@ function showParent() {
 $('#p-reset').onclick = () => {
   modal(`<div style="font-size:60px">⚠️</div><h2>Biztosan törlöd a haladást?</h2><p style="font-size:18px">Minden pont, szint és sorozat elvész.</p>
     <div class="row"><button class="secondary" data-close>Mégse</button><button class="primary" id="m-reset" style="background:#dc2626;box-shadow:0 6px 0 #991b1b">Törlés</button></div>`);
-  $('#m-reset').onclick = () => { const n = S.name; S = blank(); S.name = n; save(); closeModal(); showParent(); };
+  $('#m-reset').onclick = () => { const n = S.name, g = S.g; S = blank(); S.name = n; S.g = g; save(); closeModal(); showParent(); };
 };
 $('#p-rename').onclick = () => {
-  modal(`<h2>Új név</h2><input id="m-name" maxlength="16" value="${esc(S.name)}" style="font:inherit;font-size:26px;padding:12px;border-radius:16px;border:3px solid var(--line);width:100%;text-align:center;margin-bottom:16px">
+  let g = S.g;
+  modal(`<h2>Név módosítása</h2><input id="m-name" maxlength="16" value="${esc(S.name)}" style="font:inherit;font-size:26px;padding:12px;border-radius:16px;border:3px solid var(--line);width:100%;text-align:center;margin-bottom:16px;user-select:text">
+    <div class="row" id="m-g" style="margin-bottom:16px"><button class="gbtn" data-g="lany">👧<span>Lány</span></button><button class="gbtn" data-g="fiu">👦<span>Fiú</span></button></div>
     <div class="row"><button class="secondary" data-close>Mégse</button><button class="primary" id="m-saveName">Mentés</button></div>`);
-  $('#m-saveName').onclick = () => { const v = $('#m-name').value.trim(); if (v) { S.name = v; save(); } closeModal(); };
+  const paint = () => document.querySelectorAll('#m-g .gbtn').forEach(b => b.classList.toggle('on', b.dataset.g === g));
+  paint();
+  $('#m-g').onclick = e => { const b = e.target.closest('.gbtn'); if (b) { g = b.dataset.g; paint(); } };
+  $('#m-saveName').onclick = () => {
+    const v = $('#m-name').value.trim();
+    if (v && profiles().some(p => p.k !== KEY && nameKey(p.s.name) === nameKey(v))) { shakeEl($('#m-name')); return; }
+    if (v) S.name = v; S.g = g; save(); closeModal(); showParent();
+  };
+};
+$('#p-delete').onclick = () => {
+  modal(`<div style="font-size:60px">⚠️</div><h2>Törlöd ${esc(S.name)} játékost?</h2><p style="font-size:18px">A játékos és minden haladása véglegesen törlődik.</p>
+    <div class="row"><button class="secondary" data-close>Mégse</button><button class="primary" id="m-del" style="background:#dc2626;box-shadow:0 6px 0 #991b1b">Törlés</button></div>`);
+  $('#m-del').onclick = () => {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    U.keys = U.keys.filter(k => k !== KEY); U.active = KEY = null; S = blank(); saveUsers();
+    closeModal(); showProfiles();
+  };
 };
 
 home();

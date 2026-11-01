@@ -62,6 +62,18 @@
   /* ---------- Név ---------- */
   .namebox { max-width: 520px; margin: 40px auto; background: var(--card); border-radius: 28px; padding: 28px; text-align: center; box-shadow: 0 6px 0 var(--line); }
   .namebox input { font: inherit; font-size: 30px; padding: 14px; border-radius: 18px; border: 3px solid var(--line); width: 100%; text-align: center; margin: 16px 0; user-select: text; }
+  .plead { font-size: 20px; font-weight: 700; margin: 10px 0; }
+  .plist { display: grid; gap: 10px; }
+  .profile { display: flex; align-items: center; gap: 14px; border: 3px solid var(--line); background: #fff; border-radius: 20px; padding: 10px 16px; box-shadow: 0 4px 0 var(--line); text-align: left; }
+  .profile.cur { border-color: #a78bfa; }
+  .profile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .profile .av { font-size: 42px; }
+  .profile .pn { font-size: 26px; font-weight: 900; display: flex; flex-direction: column; }
+  .profile small { font-size: 15px; font-weight: 700; color: var(--soft); }
+  .gbtn { flex: 1; max-width: 200px; border: 3px solid var(--line); background: #fff; border-radius: 20px; padding: 10px; font-size: 40px; box-shadow: 0 4px 0 var(--line); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .gbtn span { font-size: 18px; font-weight: 800; color: var(--ink); }
+  .gbtn.on { border-color: #8b5cf6; background: #f5f3ff; box-shadow: 0 4px 0 #a78bfa; }
+  .userbtn { margin: -6px 0 12px; }
   .namebox input:focus { outline: none; border-color: var(--pri2); }
 
   /* ---------- Kvíz ---------- */
@@ -231,8 +243,9 @@
   <div class="namebox">
     <div class="owl">🦉</div>
     <h1>Szóláskaland</h1>
-    <p style="font-size:21px">Szia! Bagoly Bori vagyok. Én segítek megtanulni a szólásokat és közmondásokat. Hogy hívnak?</p>
-    <input id="nameinput" maxlength="16" placeholder="A neved" autocomplete="off">
+    <div id="profiles"></div>
+    <input id="nameinput" maxlength="16" placeholder="A beceneved" autocomplete="off">
+    <div class="row" id="genderrow" style="margin-bottom:18px"><button class="gbtn" data-g="lany">👧<span>Lány vagyok</span></button><button class="gbtn" data-g="fiu">👦<span>Fiú vagyok</span></button></div>
     <button class="primary" id="namego">Indulhat a kaland! 🚀</button>
   </div>
 </section>
@@ -243,6 +256,7 @@
     <div class="owl">🦉</div>
     <h1>Szóláskaland</h1>
     <div class="hello" id="hello"></div>
+    <button class="ghost userbtn" id="switch-user"></button>
   </div>
   <div class="statsrow">
     <div class="pill">🔥 <span id="h-streak"></span></div>
@@ -332,6 +346,7 @@
   <div class="row" style="margin:18px 0">
     <button class="secondary" id="p-rename">✏️ Név módosítása</button>
     <button class="secondary" id="p-reset" style="color:#dc2626">🗑️ Haladás törlése</button>
+    <button class="secondary" id="p-delete" style="color:#dc2626">👋 Játékos törlése</button>
   </div>
 </section>
 
