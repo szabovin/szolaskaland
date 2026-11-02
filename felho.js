@@ -120,7 +120,7 @@ window.Cloud = (() => {
     ids.forEach(id => {
       const a = (loc.items || {})[id], b = (rem.items || {})[id];
       if (!a || !b) { items[id] = a || b; return; }
-      const sa = a.r + a.w, sb = b.r + b.w;
+      const sa = a.r + a.w + (a.v || 0), sb = b.r + b.w + (b.v || 0);
       items[id] = sa !== sb ? (sa > sb ? a : b) : a.last !== b.last ? (a.last > b.last ? a : b) : (a.l >= b.l ? a : b);
     });
     m.items = items; m.upd = Math.max(loc.upd || 0, rem.upd || 0);

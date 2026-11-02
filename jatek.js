@@ -221,7 +221,8 @@ function buildRound(cat) {
   const pool = ITEMS.filter(it => !cat || it.cat === cat);
   const learning = pool.filter(it => lvl(it.id) >= 1 && lvl(it.id) < 6)
     .sort((a, b) => P(a.id).last - P(b.id).last || lvl(a.id) - lvl(b.id));
-  const fresh = pool.filter(it => lvl(it.id) === 0);
+  const vSeen = it => (S.items[it.id] && S.items[it.id].v) || 0;
+  const fresh = pool.filter(it => lvl(it.id) === 0).sort((a, b) => (vSeen(b) > 0) - (vSeen(a) > 0));   // Villámkörben már látottak előre
   const review = shuffle(pool.filter(it => lvl(it.id) >= 6 && R - P(it.id).last >= 3)).sort((a, b) => P(a.id).last - P(b.id).last);
   // Új szólás csak akkor jön, ha nincs túl sok "félkész" – így nem terheljük túl
   let nNew = cat ? (learning.length < 6 ? 4 : learning.length < 10 ? 2 : 1)
@@ -299,7 +300,7 @@ function renderIntro(it) {
   if (p.l === 0) { p.l = 1; p.last = S.round; save(); }
   $('#q-body').innerHTML = `<div class="card intro">
     ${tagHTML(it)}
-    <div class="new" style="margin-top:14px">✨ ÚJ SZÓLÁS! ✨</div>
+    <div class="new" style="margin-top:14px">${p.v ? '👀 Ezzel már találkoztál a Villámkörben!' : '✨ ÚJ SZÓLÁS! ✨'}</div>
     <div class="saying">${esc(it.full)}</div>
     <div class="meaning">💡 Jelentése: <b>${esc(it.mean)}</b></div>
     ${it.ex ? `<div class="explain">🔎 <b>Miért mondjuk így?</b> ${esc(it.ex)}</div>` : ''}
@@ -509,9 +510,10 @@ let timerId = null;
 function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 function startFlash(secs = 60) {
   G = newGame('flash'); G.secs = secs;
-  let pool = ITEMS.filter(it => lvl(it.id) >= 1);
-  if (pool.length < 8) pool = pool.concat(ITEMS.filter(it => lvl(it.id) === 0).slice(0, 8 - pool.length));
-  G.pool = pool; G.end = Date.now() + secs * 1000;
+  // Tanult szólások + kb. minden 5. kérdésként egy még ismeretlen ("tippelj!") – a tippelés előkészíti a tanulást
+  G.pool = ITEMS.filter(it => lvl(it.id) >= 1);
+  G.fresh = ITEMS.filter(it => lvl(it.id) === 0);
+  G.end = Date.now() + secs * 1000;
   $('#q-timer').style.display = '';
   $('#r-again').onclick = () => startFlash(secs);
   show('s-quiz');
@@ -529,6 +531,14 @@ function fmtLeft(t) { return t >= 60 ? Math.floor(t / 60) + ':' + String(t % 60)
 function flashNext() {
   if (G.abort) return;
   if (G.timeUp || Date.now() >= G.end) return endRound();
+  const freshRate = G.pool.length < 8 ? .5 : .2;
+  if (G.fresh.length && (!G.pool.length || Math.random() < freshRate)) {
+    const it = G.fresh.splice(Math.random() * G.fresh.length | 0, 1)[0];   // egy körben egy ismeretlen csak egyszer jön
+    G.q = { it, kind: 'fill', fresh: true }; G.locked = false;
+    updateTop(); renderFill(it);
+    $('#q-body .card').insertAdjacentHTML('afterbegin', '<div class="freshtag">✨ Új szólás – tippelj! ✨</div>');
+    return;
+  }
   let it; do { it = pick(G.pool); } while (G.pool.length > 1 && G.q && it === G.q.it);
   const r = Math.random();
   G.q = { it, kind: G.secs > 60 ? (r < .45 ? 'fill' : r < .8 ? 'meaning' : 'reverse') : (r < .55 ? 'fill' : 'meaning') }; G.locked = false;
@@ -537,6 +547,17 @@ function flashNext() {
 }
 function flashAnswer(res, el) {
   const p = P(G.q.it.id);
+  if (G.q.fresh) {
+    // Ismeretlen szólás: nincs büntetés (combo marad, nem számít hibának), jó tippért bónusz.
+    // p.v: hányszor találkozott vele a Villámkörben – a Kaland/Témák ezeket veszi előre új szólásként.
+    p.v = (p.v || 0) + 1;
+    if (res === 'ok') { G.firstTotal++; G.firstOk++; G.combo++; const pts = 15 * (G.combo >= 6 ? 3 : G.combo >= 3 ? 2 : 1); G.score += pts; S.xp += pts; SND.ok(); floatPts(pts, el); }
+    else SND.tap();
+    G.maxCombo = Math.max(G.maxCombo, G.combo);
+    save(); updateTop();
+    setTimeout(flashNext, res === 'ok' ? 900 : 2200);   // rossz tippnél tovább látszik a helyes szólás
+    return;
+  }
   G.firstTotal++;
   if (res === 'ok') {
     G.firstOk++; G.combo++; p.r++;
