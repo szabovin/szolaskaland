@@ -56,6 +56,23 @@
   .b-topic { background: linear-gradient(135deg, #06b6d4, #2563eb); }
   .b-album { background: linear-gradient(135deg, #22c55e, #0d9488); }
   .b-parent { background: linear-gradient(135deg, #94a3b8, #64748b); }
+  .cloud { background: var(--card); border-radius: 22px; padding: 16px 18px; box-shadow: 0 4px 0 var(--line); margin: 0 0 18px; font-size: 18px; line-height: 1.45; }
+  .cloud h3 { margin: 0 0 6px; font-size: 22px; }
+  .cloud .muted { color: var(--soft); font-size: 16px; }
+  .cloud .crow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .cloud input { flex: 1; min-width: 200px; font: inherit; font-size: 18px; padding: 10px 14px; border-radius: 14px; border: 3px solid var(--line); user-select: text; -webkit-user-select: text; }
+  .cloud input:focus { outline: none; border-color: #8b5cf6; }
+  .cloud .secondary { padding: 10px 16px; font-size: 17px; border-radius: 14px; box-shadow: 0 4px 0 var(--line); }
+  .cloud .gbtn2 { border: 0; border-radius: 14px; padding: 10px 16px; font-size: 17px; font-weight: 800; background: #fff; box-shadow: 0 4px 0 var(--line); border: 2px solid var(--line); }
+  .cloud .members { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .cloud .members span { background: #f1f5f9; border-radius: 12px; padding: 6px 10px; font-size: 16px; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+  .cloud .members button { border: 0; background: transparent; font-size: 15px; color: #dc2626; padding: 0 2px; }
+  .cloud .ok { color: var(--ok); font-weight: 800; }
+  .cloud .err { color: #dc2626; font-weight: 700; }
+  .clouddet { margin-top: 22px; text-align: left; }
+  .clouddet summary { cursor: pointer; font-size: 16px; font-weight: 700; color: var(--soft); text-align: center; list-style: none; }
+  .clouddet summary::-webkit-details-marker { display: none; }
+  .clouddet .cloud { margin: 12px 0 0; box-shadow: none; border: 2px solid var(--line); }
   .footer { text-align: center; margin-top: 18px; display: flex; gap: 10px; justify-content: center; }
   .ghost { background: rgba(255,255,255,.7); border: 0; border-radius: 14px; padding: 10px 16px; font-size: 16px; font-weight: 700; color: var(--soft); }
 
@@ -247,6 +264,7 @@
     <input id="nameinput" maxlength="16" placeholder="A beceneved" autocomplete="off">
     <div class="row" id="genderrow" style="margin-bottom:18px"><button class="gbtn" data-g="lany">👧<span>Lány vagyok</span></button><button class="gbtn" data-g="fiu">👦<span>Fiú vagyok</span></button></div>
     <button class="primary" id="namego">Indulhat a kaland! 🚀</button>
+    <details class="clouddet" id="clouddet" style="display:none"><summary id="cloudsum"></summary><div class="cloud cloudpanel"></div></details>
   </div>
 </section>
 
@@ -281,6 +299,7 @@
   </div>
   <div class="footer">
     <button class="ghost" id="sound-toggle"></button>
+    <button class="ghost" id="cloud-btn" style="display:none"></button>
   </div>
 </section>
 
@@ -342,6 +361,7 @@
     de időnként visszajön ismétlésre (szétosztott ismétlés). Hibánál egy szintet visszalép, és a körön belül újra megkapja könnyebb formában,
     utána mindig megjelenik a teljes szólás és a jelentése. Egy kör 10 feladat (kb. 5–8 perc) – naponta 2–3 kör a leghatékonyabb.
   </div>
+  <div class="cloud cloudpanel"></div>
   <div id="parentstats"></div>
   <div class="row" style="margin:18px 0">
     <button class="secondary" id="p-rename">✏️ Név módosítása</button>
@@ -370,5 +390,6 @@
 
 <script src="adatok.js"></script>
 <script src="jatek.js"></script>
+<script src="felho.js"></script>
 </body>
 </html>

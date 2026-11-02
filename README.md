@@ -31,12 +31,40 @@ A játékot pontok, kombószorzó, csillagok, rangok, napi sorozat, hangok, konf
 ## Haladás mentése
 
 A haladás a böngészőben mentődik (localStorage), külön minden gépen és böngészőben.
-Az inkognitó ablak bezárásakor, illetve a böngészőadatok törlésekor a haladás elvész.
+Egy eszközön több játékos is lehet (becenév + fiú/lány), a kezdőképernyőn lehet köztük váltani.
+
+**Felhős mentés és család (opcionális, csak az online változatban):** a Szülői sarokban egy szülő
+Google-fiókkal vagy e-mailes belépő linkkel belép, létrehozza a családot, és hozzáadja a másik szülő
+e-mail-címét. Ettől kezdve a játékosok haladása minden belépett eszközön szinkronban van
+(Firebase Authentication + Cloud Firestore, ingyenes Spark csomag). Internet nélkül is lehet játszani,
+a változások visszatéréskor feltöltődnek; két eszköz mentését szólásonként fésüli össze.
+
+Firestore biztonsági szabályok (Firebase konzol → Firestore → Rules) – egy család adatait csak a tagjai érik el:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function email() {
+      return request.auth != null && request.auth.token.email_verified == true
+        ? request.auth.token.email.lower() : '';
+    }
+    match /families/{familyId} {
+      allow read, update, delete: if email() != '' && email() in resource.data.members;
+      allow create: if email() != '' && email() in request.resource.data.members;
+      match /players/{playerId} {
+        allow read, write: if email() != '' &&
+          email() in get(/databases/$(database)/documents/families/$(familyId)).data.members;
+      }
+    }
+  }
+}
+```
 
 ## Futtatás helyben
 
 Nem kell hozzá telepíteni semmit: töltsd le a fájlokat, és nyisd meg az `index.html`-t a böngészőben.
-A három fájlnak (`index.html`, `jatek.js`, `adatok.js`) ugyanabban a mappában kell lennie.
+A fájloknak (`index.html`, `jatek.js`, `adatok.js`, `felho.js`) ugyanabban a mappában kell lenniük. Helyi fájlként a felhős belépés nem működik, a haladás csak az adott gépen mentődik.
 
 ## Felépítés
 
@@ -45,6 +73,7 @@ A három fájlnak (`index.html`, `jatek.js`, `adatok.js`) ugyanabban a mappában
 | `index.html` | képernyők és stílusok |
 | `jatek.js` | játéklogika, pontozás, mentés |
 | `adatok.js` | a szólások, jelentések és magyarázatok |
+| `felho.js` | felhős mentés, belépés, családi megosztás (Firebase) |
 
 ## Források
 

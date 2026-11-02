@@ -36,7 +36,12 @@ function loadUsers() {
 function saveUsers() { try { localStorage.setItem(USERS_KEY, JSON.stringify(U)); } catch (e) {} }
 let U = loadUsers();
 let KEY = U.active;
-function save() { if (!KEY) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() {
+  if (!KEY) return;
+  S.upd = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  if (window.Cloud) Cloud.saved(KEY);   // felhőbe is (felho.js), ha be van lépve
+}
 let S = (KEY && loadKey(KEY)) || blank();
 function profiles() { return U.keys.map(k => ({ k, s: loadKey(k) })).filter(p => p.s && p.s.name); }
 function switchTo(k) { KEY = U.active = k; S = loadKey(k) || blank(); saveUsers(); }
@@ -144,6 +149,7 @@ function home() {
   $('#h-mtext').textContent = `${m} / ${ITEMS.length} mester`;
   $('#h-ltext').textContent = `${l} tanulás alatt`;
   $('#sound-toggle').textContent = S.sound ? '🔔 Hang: be' : '🔕 Hang: ki';
+  if (window.Cloud) Cloud.paint();
   show('s-home');
 }
 
@@ -708,6 +714,7 @@ function showParent() {
     <h3 style="font-size:22px;margin:20px 0 8px">Legtöbbször elrontott szólások</h3>
     ${hard.length ? '<table class="ptable"><tr><th>Szólás</th><th>Hibák</th><th>Jó válasz</th><th>Szint</th></tr>' + hard.map(it => { const p = S.items[it.id]; return `<tr><td>${esc(it.full)}<br><small style="color:var(--soft)">${esc(it.mean)}</small></td><td>${p.w}</td><td>${p.r}</td><td>${LV_ICON[p.l]}</td></tr>`; }).join('') + '</table>'
       : '<div class="ptext">Még nincs hiba – vagy még nem játszott. 🙂</div>'}`;
+  if (window.Cloud) Cloud.paint();
   show('s-parent');
 }
 $('#p-reset').onclick = () => {
@@ -733,6 +740,7 @@ $('#p-delete').onclick = () => {
   modal(`<div style="font-size:60px">⚠️</div><h2>Törlöd ${esc(S.name)} játékost?</h2><p style="font-size:18px">A játékos és minden haladása véglegesen törlődik.</p>
     <div class="row"><button class="secondary" data-close>Mégse</button><button class="primary" id="m-del" style="background:#dc2626;box-shadow:0 6px 0 #991b1b">Törlés</button></div>`);
   $('#m-del').onclick = () => {
+    if (window.Cloud) Cloud.removed(S);
     try { localStorage.removeItem(KEY); } catch (e) {}
     U.keys = U.keys.filter(k => k !== KEY); U.active = KEY = null; S = blank(); saveUsers();
     closeModal(); showProfiles();
