@@ -8,7 +8,7 @@ function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { co
 
 const ITEMS = RAW.map((r, i) => {
   const m = r[1].match(/\{(.+?)\}/);
-  return { id: i, cat: r[0], t: r[1], ans: m[1], full: r[1].replace(/[{}]/g, ''), mean: r[2], ex: r[3] || '' };
+  return { id: i, cat: r[0], t: r[1], ans: m[1], full: r[1].replace(/[{}]/g, ''), mean: r[2], ex: r[3] || '', alt: r[4] || null };
 });
 
 // Szintek: 0 = még nem látta, 1–5 = tanulási lépcsők, 6 = mester
@@ -320,6 +320,8 @@ function renderQ(q) {
 }
 
 function fillOptions(it) {
+  // Saját, azonosan ragozott rossz válaszok – a ragozás nem árulja el a megoldást
+  if (it.alt) return shuffle([it.ans, ...it.alt]);
   const low = it.ans.toLowerCase();
   const own = [...new Set(ITEMS.filter(x => x.cat === it.cat).map(x => x.ans.toLowerCase()).concat(CATS[it.cat].extra || []))].filter(w => w !== low);
   let d = shuffle(own).slice(0, 3);
@@ -352,7 +354,7 @@ function renderFill(it) {
     <div class="saying">${gapHTML(it)}</div>
     <div class="hint">💡 <b>Jelentése:</b> ${esc(it.mean)}</div>
     ${choiceButtons(opts, 0, 'g2')}</div>`;
-  wireChoices(opts, opts.indexOf(it.ans.toLowerCase()), () => fillGap(it));
+  wireChoices(opts, opts.indexOf(it.alt ? it.ans : it.ans.toLowerCase()), () => fillGap(it));
 }
 
 function renderMeaning(it) {
